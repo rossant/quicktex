@@ -1,11 +1,14 @@
+import base64
 import os
 import os.path as op
 from pathlib import Path
 import subprocess
 import tempfile
+import sys
 
 from IPython.lib.latextools import genelatex, LaTeXTool
 from PyQt5 import QtCore, QtGui, QtWidgets
+from flask import Flask, Response, request
 
 
 def cmd(c, *args, tmpdir=None):
@@ -82,16 +85,16 @@ def clipboard(path):
     cb.setMimeData(data)
 
 
-if __name__ == '__main__':
+app = Flask(__name__)
+
+
+@app.route("/")
+def main():
     preamble = r'\usepackage{chemfig}'
-    content = r'''
-
-%\setchemfig{cram width=3pt}
-\definesubmol{a}{-P(=[::-90,0.75]O)(-[::90,0.75]HO)-}
-\chemfig{[:-54]*5((--[::60]O([::-60]!aO([::-60]!aO([::60]!aHO))))<(-OH)
--[,,,,line width=2pt](-OH)>(-N*5(-=N-*6(-(-NH_2)=N-=N-)=_-))-O-)}
-
-    '''
+    b64content = request.args.get('latex', '')
+    content = base64.b64decode(b64content).decode('utf-8')
     outfile = 'file.svg'
     make_svg(content, preamble=preamble, outfile=outfile)
-    clipboard(outfile)
+    with open(outfile, 'r') as f:
+        svg = f.read()
+    return Response(svg, mimetype='image/svg+xml')
