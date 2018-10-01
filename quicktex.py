@@ -8,7 +8,7 @@ import sys
 
 from IPython.lib.latextools import genelatex, LaTeXTool
 from PyQt5 import QtCore, QtGui, QtWidgets
-from flask import Flask, Response, request
+from flask import Flask, Response, request, render_template
 
 
 def cmd(c, *args, tmpdir=None):
@@ -88,13 +88,17 @@ def clipboard(path):
 app = Flask(__name__)
 
 
-@app.route("/")
-def main():
+@app.route("/latex/<b64content>")
+def convert(b64content):
     preamble = r'\usepackage{chemfig}'
-    b64content = request.args.get('latex', '')
     content = base64.b64decode(b64content).decode('utf-8')
     outfile = 'file.svg'
     make_svg(content, preamble=preamble, outfile=outfile)
     with open(outfile, 'r') as f:
         svg = f.read()
     return Response(svg, mimetype='image/svg+xml')
+
+
+@app.route("/")
+def main():
+    return render_template('index.html')

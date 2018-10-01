@@ -1,0 +1,13 @@
+body {
+}
+
+#textarea {
+    font-family: 'Ubuntu Mono';
+    font-size: 16pt;
+    margin: 20px 0;
+}
+
+#img {
+    margin: 20px 0;
+    width: 50%;
+}
