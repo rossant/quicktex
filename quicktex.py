@@ -7,7 +7,7 @@ import tempfile
 import sys
 
 from IPython.lib.latextools import genelatex, LaTeXTool
-from PyQt5 import QtCore, QtGui, QtWidgets
+#from PyQt5 import QtCore, QtGui, QtWidgets
 from flask import Flask, Response, request, render_template
 
 
@@ -76,6 +76,7 @@ def make_svg(content, preamble='', outfile=None):
         cmd('pdf2svg %s %s', pdffile, outfile)
 
 
+"""
 def clipboard(path):
     app = QtWidgets.QApplication([])
     data = QtCore.QMimeData()
@@ -83,6 +84,7 @@ def clipboard(path):
     data.setUrls([QtCore.QUrl(url)])
     cb = app.clipboard()
     cb.setMimeData(data)
+"""
 
 
 app = Flask(__name__)
