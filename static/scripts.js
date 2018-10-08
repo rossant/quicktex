@@ -12,6 +12,8 @@ function run () {
     var getUrl = window.location;
     var baseUrl = getUrl.protocol + "//" + getUrl.host;
 
+    download("data:image/gif;base64," + b64, "file.svg", "image/svg+xml");
+
     $("#textarea").focus();
 };
 
