@@ -45,6 +45,7 @@ def make_svg(content, preamble='', outfile=None):
     LaTeXTool.instance().preamble = preamble
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpfile = latex(content, tmpdir=tmpdir)
+        outfile = outfile or op.join(tmpdir, 'tmp.svg')
         assert op.exists(tmpfile)
         cmd('dvisvgm %s -o %s', (tmpfile, outfile))
         dvi_ps(tmpfile)
@@ -52,13 +53,18 @@ def make_svg(content, preamble='', outfile=None):
         epsfile1 = Path(tmpfile).with_suffix('.eps')
         epsfile2 = Path(tmpfile).with_suffix('.tight.eps')
         assert op.exists(psfile)
-        cmd('ps2eps %s', (psfile,))
+        cmd('ps2eps -f %s', (psfile,))
         assert op.exists(epsfile1)
         cmd('epstool --bbox --copy %s %s', (epsfile1, epsfile2))
         assert op.exists(epsfile2)
         pdffile = Path(tmpfile).with_suffix('.pdf')
         ps_pdf(epsfile2, pdffile)
+        assert op.exists(pdffile)
         cmd('pdf2svg %s %s', (pdffile, outfile))
+        assert op.exists(outfile)
+        with open(outfile, 'r') as f:
+            svg = f.read()
+        return svg
 
 
 app = Flask(__name__)
@@ -68,10 +74,8 @@ app = Flask(__name__)
 def convert(b64content):
     preamble = r'\usepackage{chemfig}'
     content = base64.b64decode(b64content).decode('utf-8')
-    outfile = 'file.svg'
-    make_svg(content, preamble=preamble, outfile=outfile)
-    with open(outfile, 'r') as f:
-        svg = f.read()
+    outfile = op.join(op.dirname(__file__), 'output.svg')
+    svg = make_svg(content, preamble=preamble, outfile=outfile)
     return Response(svg, mimetype='image/svg+xml')
 
 
