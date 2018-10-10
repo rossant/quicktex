@@ -7,7 +7,7 @@ function utoa(str) {
 
 
 function getTitle () {
-    return $("#textarea").val().split('\n')[0].substring(1);
+    return $("#title-form").val();
 }
 
 
@@ -40,7 +40,14 @@ function addToList (key, val) {
 }
 
 
-function getItem (title) {
+function deleteFromList (key) {
+    var l = getList();
+    delete l[key];
+    setList(l);
+}
+
+
+function getListItem (title) {
     for (let child of $("#list-items").children()) {
         if (child.text() == title) {
             return child;
@@ -49,30 +56,21 @@ function getItem (title) {
 }
 
 
-function saveCurrent () {
-    var title = getTitle();
-    var text = currentCode();
-
-    if (!select(title)) {
-        currentItem().text(title);
-    }
-
-    addToList(title, text);
-};
-
-
-function load (title) {
-    var text = getList()[title];
-    $("#textarea").val(text);
-}
-
-
 function loadAll () {
     var l = getList();
+    console.debug("Loading all items from local storage.")
     for (let title in l) {
         var text = l[title];
         $("#list-items").append('<a href="#" class="list-group-item list-group-item-action">' + title + '</a>');
     }
+    select(Object.keys(l)[0]);
+}
+
+
+function setDefaultList () {
+    if (count() > 0) { return; }
+    console.debug("Setting default list.")
+    addToList('untitled', 'Hello world!');
 }
 
 
@@ -80,12 +78,44 @@ function select (title) {
     for (let child of $("#list-items a")) {
         child = $(child);
         if (child.text() == title) {
+            console.debug("Selecting", title);
             currentItem().removeClass("active");
             child.addClass("active");
-            load(title);
+            $("#textarea").val(getList()[title]);
+            $("#title-form").val(title);
+            run();
             return true;
         }
     }
+}
+
+
+function titles () {
+    return Object.keys(getList());
+}
+
+
+function count () {
+    return titles().length;
+}
+
+
+function saveCurrent () {
+    var title = getTitle();
+    var text = currentCode();
+    console.debug("Saving", title);
+    addToList(title, text);
+    currentItem().text(title);
+};
+
+
+function deleteCurrent () {
+    if (count() == 0) { return; }
+    var title = getTitle();
+    log.debug("Delete", title);
+    deleteFromList(title);
+    $("#list-items a.active").remove();
+    select(titles()[0]);
 }
 
 
@@ -116,6 +146,7 @@ function copyToClipboard(text){
 
 
 window.addEventListener('load', function() {
+    setDefaultList();
     loadAll();
 
     $("#list-items a").on("click", function (e) {
