@@ -72,7 +72,7 @@ app = Flask(__name__)
 
 @app.route("/latex/<b64content>")
 def convert(b64content):
-    preamble = r'\usepackage{chemfig}'
+    preamble = '\\usepackage{chemfig}\n\\setchemfig{atom sep=1.75em}'
     content = base64.b64decode(b64content).decode('utf-8')
     outfile = op.join(op.dirname(__file__), 'output.svg')
     svg = make_svg(content, preamble=preamble, outfile=outfile)
