@@ -128,7 +128,7 @@ function run () {
     var getUrl = window.location;
     var baseUrl = getUrl.protocol + "//" + getUrl.host;
 
-    copyToClipboard("file:///home/cyrille/git/quicktex/sony/output.svg");
+    copyToClipboard("file:///home/cyrille/git/quicktex/.cache/" + sha1(b64) + ".svg");
     saveCurrent();
 
     $("#textarea").focus();

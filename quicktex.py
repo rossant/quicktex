@@ -1,4 +1,6 @@
 import base64
+import hashlib
+import json
 import os
 import os.path as op
 from pathlib import Path
@@ -7,6 +9,10 @@ import tempfile
 
 from IPython.lib.latextools import genelatex, LaTeXTool
 from flask import Flask, Response, render_template
+
+
+def sha(s):
+    return hashlib.sha1(s.encode('utf-8')).hexdigest()
 
 
 def cmd(c, args, tmpdir=None):
@@ -41,11 +47,11 @@ def ps_pdf(path, output):
         (output, path), tmpdir=tmpdir)
 
 
-def make_svg(content, preamble='', outfile=None):
+def make_svg(preamble, content):
     LaTeXTool.instance().preamble = preamble
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpfile = latex(content, tmpdir=tmpdir)
-        outfile = outfile or op.join(tmpdir, 'tmp.svg')
+        outfile = op.join(tmpdir, 'tmp.svg')
         assert op.exists(tmpfile)
         cmd('dvisvgm %s -o %s', (tmpfile, outfile))
         dvi_ps(tmpfile)
@@ -74,8 +80,18 @@ app = Flask(__name__)
 def convert(b64content):
     preamble = '\\usepackage{chemfig}\n\\setchemfig{atom sep=1.75em}'
     content = base64.b64decode(b64content).decode('utf-8')
-    outfile = op.join(op.dirname(__file__), 'output.svg')
-    svg = make_svg(content, preamble=preamble, outfile=outfile)
+
+    outdir = op.join(op.dirname(__file__), '.cache')
+    if not op.exists(outdir):
+        os.mkdir(outdir)
+    outfile = op.join(outdir, sha(b64content) + '.svg')
+    if not op.exists(outfile):
+        svg = make_svg(preamble, content)
+        with open(outfile, 'w') as f:
+            f.write(svg)
+    else:
+        with open(outfile, 'r') as f:
+            svg = f.read()
     return Response(svg, mimetype='image/svg+xml')
 
 
