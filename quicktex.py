@@ -45,6 +45,7 @@ def cmd(c, args, tmpdir=None):
 
 
 def latex(content, tmpdir=None):
+    content = content.strip() or '.'
     tmpfile = op.join(tmpdir, 'tmp.tex')
     outfile = Path(tmpfile).with_suffix('.dvi')
     lines = list(genelatex(content, False))
@@ -137,6 +138,8 @@ def get_image(title):
 @app.route('/images/<string:title>/code', methods=['GET'])
 def get_code(title):
     svg = get_image(title).data.decode('utf-8')
+    if ('<!--' not in svg):
+        return jsonify({'error': 'Comment not found'})
     i = svg.index('<!--') + 4
     j = svg.index('-->')
     return jsonify({'response': b64decode(svg[i:j])})
@@ -146,7 +149,7 @@ def get_code(title):
 def delete_image(title):
     path = get_image_path(title)
     if op.exists(path):
-        os.delete(path)
+        os.remove(path)
     return jsonify({'result': 'ok'})
 
 

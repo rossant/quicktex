@@ -21,6 +21,33 @@ function currentCode () {
 }
 
 
+function addItem (title) {
+    $("#list-items").append('<a href="#" class="list-group-item list-group-item-action">' + title + '</a>');
+}
+
+
+function newItem () {
+    addItem("untitled");
+    select("untitled");
+}
+
+
+function next () {
+    select(currentItem().next().text());
+}
+
+
+function previous () {
+    select(currentItem().prev().text());
+}
+
+
+function firstTitle () {
+    var title = $("#list-items a:first-child").text();
+    return title;
+}
+
+
 function getListItem (title) {
     for (let child of $("#list-items").children()) {
         if (child.text() == title) {
@@ -48,15 +75,15 @@ function save () {
 
 
 function remove () {
-    if (count() == 0) { return; }
+    if (!currentItem()) { return; }
     var title = currentTitle();
-    log.debug("Delete", title);
+    console.debug("Delete", title);
     $.ajax({
         url: '/images/' + title,
         type: 'DELETE',
         success: function (response) {
             $("#list-items a.active").remove();
-            select(titles()[0]);
+            select(firstTitle());
         }
     });
 }
@@ -67,7 +94,7 @@ function loadAll () {
         var images = data["images"];
         console.debug("Loading all items.")
         for (let title of images) {
-            $("#list-items").append('<a href="#" class="list-group-item list-group-item-action">' + title + '</a>');
+            addItem(title);
         }
         select(images[0]);
     });
@@ -99,7 +126,7 @@ function run () {
     save();
     copyToClipboard("file:///home/cyrille/git/quicktex/.cache/" + title + ".svg");
     $("#textarea").focus()
-
+    currentItem().text(title);
 };
 
 
@@ -116,14 +143,20 @@ function copyToClipboard(text){
 window.addEventListener('load', function() {
     loadAll();
 
-    $("#list-items a").on("click", function (e) {
+    $("#list-items").on("click", function (e) {
+        select($(e.target).text());
         e.preventDefault();
-        select($(this).text());
     });
 
-    $('#textarea').keydown(function (event) {
+    $(document).keydown(function (event) {
         if ((event.keyCode == 10 || event.keyCode == 13) && event.ctrlKey) {
             run();
+        }
+        else if ((event.keyCode == 40) && event.ctrlKey) {
+            next();
+        }
+        else if ((event.keyCode == 38) && event.ctrlKey) {
+            previous();
         }
     });
 });
