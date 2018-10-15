@@ -6,44 +6,18 @@ function utoa(str) {
 }
 
 
-function getTitle () {
-    return $("#title-form").val();
-}
-
-
 function currentItem () {
     return $("#list-items .active");
 }
 
 
+function currentTitle () {
+    return $("#title-form").val();
+}
+
+
 function currentCode () {
     return $("#textarea").val();
-}
-
-
-function getList () {
-    var l = JSON.parse(localStorage.getItem(LS_NAME));
-    if (!l) l = {};
-    return l;
-}
-
-
-function setList (l) {
-    localStorage.setItem(LS_NAME, JSON.stringify(l));
-}
-
-
-function addToList (key, val) {
-    var l = getList();
-    l[key] = val;
-    setList(l);
-}
-
-
-function deleteFromList (key) {
-    var l = getList();
-    delete l[key];
-    setList(l);
 }
 
 
@@ -56,21 +30,47 @@ function getListItem (title) {
 }
 
 
-function loadAll () {
-    var l = getList();
-    console.debug("Loading all items from local storage.")
-    for (let title in l) {
-        var text = l[title];
-        $("#list-items").append('<a href="#" class="list-group-item list-group-item-action">' + title + '</a>');
-    }
-    select(Object.keys(l)[0]);
+function save () {
+    var title = currentTitle();
+    var text = currentCode();
+    console.debug("Saving", title);
+    $.ajax({
+        url: '/images/' + title,
+        type: 'POST',
+        data: {
+            content: text
+        },
+        success: function (response) {
+            select(title);
+        }
+    });
 }
 
 
-function setDefaultList () {
-    if (count() > 0) { return; }
-    console.debug("Setting default list.")
-    addToList('untitled', 'Hello world!');
+function remove () {
+    if (count() == 0) { return; }
+    var title = currentTitle();
+    log.debug("Delete", title);
+    $.ajax({
+        url: '/images/' + title,
+        type: 'DELETE',
+        success: function (response) {
+            $("#list-items a.active").remove();
+            select(titles()[0]);
+        }
+    });
+}
+
+
+function loadAll () {
+    $.get('/images', function (data) {
+        var images = data["images"];
+        console.debug("Loading all items.")
+        for (let title of images) {
+            $("#list-items").append('<a href="#" class="list-group-item list-group-item-action">' + title + '</a>');
+        }
+        select(images[0]);
+    });
 }
 
 
@@ -81,57 +81,25 @@ function select (title) {
             console.debug("Selecting", title);
             currentItem().removeClass("active");
             child.addClass("active");
-            $("#textarea").val(getList()[title]);
+
             $("#title-form").val(title);
-            run();
-            return true;
+            var url = '/images/' + title;
+            $("#img").attr("src", url);
+            $.get(url + '/code', function (data) {
+                $("#textarea").val(data["response"]);
+            });
         }
     }
 }
 
 
-function titles () {
-    return Object.keys(getList());
-}
-
-
-function count () {
-    return titles().length;
-}
-
-
-function saveCurrent () {
-    var title = getTitle();
-    var text = currentCode();
-    console.debug("Saving", title);
-    addToList(title, text);
-    currentItem().text(title);
-};
-
-
-function deleteCurrent () {
-    if (count() == 0) { return; }
-    var title = getTitle();
-    log.debug("Delete", title);
-    deleteFromList(title);
-    $("#list-items a.active").remove();
-    select(titles()[0]);
-}
-
-
 function run () {
+    var title = currentTitle()
     var text = currentCode();
-    var b64 = utoa(text);
-    var url = "/latex/" + b64;
-    $("#img").attr("src", url);
+    save();
+    copyToClipboard("file:///home/cyrille/git/quicktex/.cache/" + title + ".svg");
+    $("#textarea").focus()
 
-    var getUrl = window.location;
-    var baseUrl = getUrl.protocol + "//" + getUrl.host;
-
-    copyToClipboard("file:///home/cyrille/git/quicktex/.cache/" + sha1(b64) + ".svg");
-    saveCurrent();
-
-    $("#textarea").focus();
 };
 
 
@@ -146,7 +114,6 @@ function copyToClipboard(text){
 
 
 window.addEventListener('load', function() {
-    setDefaultList();
     loadAll();
 
     $("#list-items a").on("click", function (e) {

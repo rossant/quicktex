@@ -1,6 +1,6 @@
 import base64
+import glob
 import hashlib
-import json
 import os
 import os.path as op
 from pathlib import Path
@@ -8,11 +8,29 @@ import subprocess
 import tempfile
 
 from IPython.lib.latextools import genelatex, LaTeXTool
-from flask import Flask, Response, render_template
+from flask import Flask, Response, render_template, request, jsonify
+
+
+DEFAULT_PREAMBLE = r'''
+\usepackage{chemfig}
+\setchemfig{atom sep=1.75em}
+'''
+
+
+DEFAULT_HEADER = r'''
+'''
 
 
 def sha(s):
     return hashlib.sha1(s.encode('utf-8')).hexdigest()
+
+
+def b64encode(s):
+    return base64.b64encode(s.encode('utf-8')).decode('utf-8')
+
+
+def b64decode(b64):
+    return base64.b64decode(b64).decode('utf-8')
 
 
 def cmd(c, args, tmpdir=None):
@@ -20,7 +38,8 @@ def cmd(c, args, tmpdir=None):
         try:
             subprocess.check_call(
                 (c % args).split(' '), cwd=tmpdir,
-                stdout=devnull, stderr=devnull)
+                stdout=devnull, stderr=devnull,
+            )
         except Exception as e:
             raise(e)
 
@@ -47,8 +66,9 @@ def ps_pdf(path, output):
         (output, path), tmpdir=tmpdir)
 
 
-def make_svg(preamble, content):
-    LaTeXTool.instance().preamble = preamble
+def make_svg(content):
+    LaTeXTool.instance().preamble = DEFAULT_PREAMBLE
+    content = DEFAULT_HEADER + content
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpfile = latex(content, tmpdir=tmpdir)
         outfile = op.join(tmpdir, 'tmp.svg')
@@ -73,28 +93,66 @@ def make_svg(preamble, content):
         return svg
 
 
+def cache_dir():
+    cache = op.join(op.dirname(__file__), '.cache')
+    if not op.exists(cache):
+        os.mkdir(cache)
+    return cache
+
+
+def get_image_path(title):
+    return op.join(cache_dir(), str(title) + '.svg')
+
+
 app = Flask(__name__)
 
 
-@app.route("/latex/<b64content>")
-def convert(b64content):
-    preamble = '\\usepackage{chemfig}\n\\setchemfig{atom sep=1.75em}'
-    content = base64.b64decode(b64content).decode('utf-8')
+@app.route('/')
+def main():
+    return render_template('index.html')
 
-    outdir = op.join(op.dirname(__file__), '.cache')
-    if not op.exists(outdir):
-        os.mkdir(outdir)
-    outfile = op.join(outdir, sha(b64content) + '.svg')
-    if not op.exists(outfile):
-        svg = make_svg(preamble, content)
-        with open(outfile, 'w') as f:
-            f.write(svg)
-    else:
-        with open(outfile, 'r') as f:
-            svg = f.read()
+
+@app.route('/images/<string:title>', methods=['POST', 'PUT', 'PATCH'])
+def create_image(title):
+    path = get_image_path(title)
+    content = request.form['content']
+    svg = make_svg(content)
+    with open(path, 'w') as f:
+        f.write(svg)
+        # Add content as comment in the XML SVG file.
+        f.write('<!--%s-->\n' % b64encode(content))
+    return jsonify({'result': 'ok'})
+
+
+@app.route('/images/<string:title>', methods=['GET'])
+def get_image(title):
+    path = get_image_path(title)
+    if not op.exists(path):
+        return jsonify({'error': 'File not found: %s' % path})
+    with open(path, 'r') as f:
+        svg = f.read()
     return Response(svg, mimetype='image/svg+xml')
 
 
-@app.route("/")
-def main():
-    return render_template('index.html')
+@app.route('/images/<string:title>/code', methods=['GET'])
+def get_code(title):
+    svg = get_image(title).data.decode('utf-8')
+    i = svg.index('<!--') + 4
+    j = svg.index('-->')
+    return jsonify({'response': b64decode(svg[i:j])})
+
+
+@app.route('/images/<string:title>', methods=['DELETE'])
+def delete_image(title):
+    path = get_image_path(title)
+    if op.exists(path):
+        os.delete(path)
+    return jsonify({'result': 'ok'})
+
+
+@app.route('/images', methods=['GET'])
+def list_images():
+    images = sorted(
+        [op.splitext(op.basename(f))[0]
+         for f in glob.glob(op.join(cache_dir(), '*.svg'))])
+    return jsonify({'images': images})
