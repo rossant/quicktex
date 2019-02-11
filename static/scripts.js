@@ -26,9 +26,29 @@ function addItem (title) {
 }
 
 
+function addItemAfterCurrent (title) {
+    currentItem().after('<a href="#" class="list-group-item list-group-item-action">' + title + '</a>');
+}
+
+
+function clear () {
+    $("#list-items").children().remove();
+}
+
+
 function newItem () {
     addItem("untitled");
     select("untitled");
+}
+
+
+function duplicate () {
+    var title = currentTitle() + '_copy';
+    var code = currentCode();
+    addItemAfterCurrent(title);
+    select(title, false);
+    $("#textarea").val(code);
+    save();
 }
 
 
@@ -68,7 +88,11 @@ function save () {
             content: text
         },
         success: function (response) {
+            console.log("success");
             select(title);
+        },
+        error: function (response) {
+            console.error(response);
         }
     });
 }
@@ -93,6 +117,7 @@ function loadAll () {
     $.get('/images', function (data) {
         var images = data["images"];
         console.debug("Loading all items.")
+        clear();
         for (let title of images) {
             addItem(title);
         }
@@ -101,7 +126,7 @@ function loadAll () {
 }
 
 
-function select (title) {
+function select (title, loadAfter=true) {
     for (let child of $("#list-items a")) {
         child = $(child);
         if (child.text() == title) {
@@ -110,11 +135,15 @@ function select (title) {
             child.addClass("active");
 
             $("#title-form").val(title);
-            var url = '/images/' + title;
-            $("#img").attr("src", url);
-            $.get(url + '/code', function (data) {
-                $("#textarea").val(data["response"]);
-            });
+
+            if (loadAfter) {
+                var url = '/images/' + title;
+                $("#img").attr("src", url);
+                $.get(url + '/code', function (data) {
+                    $("#textarea").val(data["response"]);
+                });
+            }
+            return;
         }
     }
 }
