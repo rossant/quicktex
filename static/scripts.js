@@ -153,10 +153,16 @@ function run () {
     var title = currentTitle()
     var text = currentCode();
     save();
-    copyToClipboard("file:///home/cyrille/git/quicktex/.cache/" + title + ".svg");
+    //copyToClipboard("file:///home/cyrille/git/quicktex/.cache/" + title + ".svg");
     $("#textarea").focus()
     currentItem().text(title);
 };
+
+
+function clip() {
+    var title = currentTitle();
+    copyToClipboard("file:///home/cyrille/git/quicktex/.cache/" + title + ".svg");
+}
 
 
 function copyToClipboard(text){
